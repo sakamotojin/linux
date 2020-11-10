@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AMD Secure Encrypted Virtualization (SEV) driver interface
  *
@@ -5,12 +6,7 @@
  *
  * Author: Brijesh Singh <brijesh.singh@amd.com>
  *
- * SEV spec 0.14 is available at:
- * http://support.amd.com/TechDocs/55766_SEV-KM API_Specification.pdf
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * SEV API spec is available at https://developer.amd.com/sev
  */
 
 #ifndef __PSP_SEV_H__
@@ -54,6 +50,8 @@ enum sev_cmd {
 	SEV_CMD_PDH_CERT_EXPORT		= 0x008,
 	SEV_CMD_PDH_GEN			= 0x009,
 	SEV_CMD_DF_FLUSH		= 0x00A,
+	SEV_CMD_DOWNLOAD_FIRMWARE	= 0x00B,
+	SEV_CMD_GET_ID			= 0x00C,
 
 	/* Guest commands */
 	SEV_CMD_DECOMMISSION		= 0x020,
@@ -102,6 +100,8 @@ struct sev_data_init {
 	u32 tmr_len;			/* In */
 } __packed;
 
+#define SEV_INIT_FLAGS_SEV_ES	0x01
+
 /**
  * struct sev_data_pek_csr - PEK_CSR command parameters
  *
@@ -129,6 +129,27 @@ struct sev_data_pek_cert_import {
 	u32 oca_cert_len;			/* In */
 } __packed;
 
+/**
+ * struct sev_data_download_firmware - DOWNLOAD_FIRMWARE command parameters
+ *
+ * @address: physical address of firmware image
+ * @len: len of the firmware image
+ */
+struct sev_data_download_firmware {
+	u64 address;				/* In */
+	u32 len;				/* In */
+} __packed;
+
+/**
+ * struct sev_data_get_id - GET_ID command parameters
+ *
+ * @address: physical address of region to place unique CPU ID(s)
+ * @len: len of the region
+ */
+struct sev_data_get_id {
+	u64 address;				/* In */
+	u32 len;				/* In/Out */
+} __packed;
 /**
  * struct sev_data_pdh_cert_export - PDH_CERT_EXPORT command parameters
  *
@@ -576,7 +597,7 @@ int sev_guest_df_flush(int *error);
  */
 int sev_guest_decommission(struct sev_data_decommission *data, int *error);
 
-void *psp_copy_user_blob(u64 __user uaddr, u32 len);
+void *psp_copy_user_blob(u64 uaddr, u32 len);
 
 #else	/* !CONFIG_CRYPTO_DEV_SP_PSP */
 

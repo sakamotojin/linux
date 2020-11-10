@@ -403,7 +403,7 @@
 #define I40IW_CQP_OP_MANAGE_ARP                 0x0f
 #define I40IW_CQP_OP_MANAGE_VF_PBLE_BP          0x10
 #define I40IW_CQP_OP_MANAGE_PUSH_PAGES          0x11
-#define I40IW_CQP_OP_MANAGE_PE_TEAM             0x12
+#define I40IW_CQP_OP_QUERY_RDMA_FEATURES	0x12
 #define I40IW_CQP_OP_UPLOAD_CONTEXT             0x13
 #define I40IW_CQP_OP_ALLOCATE_LOC_MAC_IP_TABLE_ENTRY 0x14
 #define I40IW_CQP_OP_MANAGE_HMC_PM_FUNC_TABLE   0x15
@@ -418,6 +418,8 @@
 #define I40IW_CQP_OP_QUERY_FPM_VALUES           0x20
 #define I40IW_CQP_OP_COMMIT_FPM_VALUES          0x21
 #define I40IW_CQP_OP_FLUSH_WQES                 0x22
+/* I40IW_CQP_OP_GEN_AE is the same value as I40IW_CQP_OP_FLUSH_WQES */
+#define I40IW_CQP_OP_GEN_AE                     0x22
 #define I40IW_CQP_OP_MANAGE_APBVT               0x23
 #define I40IW_CQP_OP_NOP                        0x24
 #define I40IW_CQP_OP_MANAGE_QUAD_HASH_TABLE_ENTRY 0x25
@@ -428,6 +430,24 @@
 #define I40IW_CQP_OP_RESUME_QP                  0x2a
 #define I40IW_CQP_OP_SHMC_PAGES_ALLOCATED       0x2b
 #define I40IW_CQP_OP_SET_HMC_RESOURCE_PROFILE   0x2d
+
+#define I40IW_FEATURE_BUF_SIZE                  (8 * I40IW_MAX_FEATURES)
+
+#define I40IW_FW_VER_MINOR_SHIFT        0
+#define I40IW_FW_VER_MINOR_MASK         \
+	(0xffffULL << I40IW_FW_VER_MINOR_SHIFT)
+
+#define I40IW_FW_VER_MAJOR_SHIFT        16
+#define I40IW_FW_VER_MAJOR_MASK	        \
+	(0xffffULL << I40IW_FW_VER_MAJOR_SHIFT)
+
+#define I40IW_FEATURE_INFO_SHIFT        0
+#define I40IW_FEATURE_INFO_MASK         \
+	(0xffffULL << I40IW_FEATURE_INFO_SHIFT)
+
+#define I40IW_FEATURE_CNT_SHIFT         32
+#define I40IW_FEATURE_CNT_MASK          \
+	(0xffffULL << I40IW_FEATURE_CNT_SHIFT)
 
 #define I40IW_UDA_QPSQ_NEXT_HEADER_SHIFT 16
 #define I40IW_UDA_QPSQ_NEXT_HEADER_MASK ((u64)0xff << I40IW_UDA_QPSQ_NEXT_HEADER_SHIFT)
@@ -1527,7 +1547,8 @@ enum i40iw_alignment {
 	I40IW_AEQ_ALIGNMENT =		0x100,
 	I40IW_CEQ_ALIGNMENT =		0x100,
 	I40IW_CQ0_ALIGNMENT =		0x100,
-	I40IW_SD_BUF_ALIGNMENT =	0x80
+	I40IW_SD_BUF_ALIGNMENT =	0x80,
+	I40IW_FEATURE_BUF_ALIGNMENT =	0x8
 };
 
 #define I40IW_WQE_SIZE_64	64
@@ -1729,6 +1750,8 @@ enum i40iw_alignment {
 #define OP_COMMIT_FPM_VALUES                    30
 #define OP_REQUESTED_COMMANDS                   31
 #define OP_COMPLETED_COMMANDS                   32
-#define OP_SIZE_CQP_STAT_ARRAY                  33
+#define OP_GEN_AE                               33
+#define OP_QUERY_RDMA_FEATURES                  34
+#define OP_SIZE_CQP_STAT_ARRAY			35
 
 #endif

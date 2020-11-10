@@ -56,7 +56,6 @@
 	{(1UL << GLF_REPLY_PENDING),		"r" },		\
 	{(1UL << GLF_INITIAL),			"I" },		\
 	{(1UL << GLF_FROZEN),			"F" },		\
-	{(1UL << GLF_QUEUED),			"q" },		\
 	{(1UL << GLF_LRU),			"L" },		\
 	{(1UL << GLF_OBJECT),			"o" },		\
 	{(1UL << GLF_BLOCKING),			"b" })
@@ -388,15 +387,17 @@ TRACE_EVENT(gfs2_log_blocks,
 	TP_STRUCT__entry(
 		__field(        dev_t,  dev                     )
 		__field(	int,	blocks			)
+		__field(	int,	blks_free		)
 	),
 
 	TP_fast_assign(
 		__entry->dev		= sdp->sd_vfs->s_dev;
 		__entry->blocks		= blocks;
+		__entry->blks_free	= atomic_read(&sdp->sd_log_blks_free);
 	),
 
-	TP_printk("%u,%u log reserve %d", MAJOR(__entry->dev),
-		  MINOR(__entry->dev), __entry->blocks)
+	TP_printk("%u,%u log reserve %d %d", MAJOR(__entry->dev),
+		  MINOR(__entry->dev), __entry->blocks, __entry->blks_free)
 );
 
 /* Writing back the AIL */
@@ -515,6 +516,7 @@ TRACE_EVENT(gfs2_iomap_end,
 		__field(	u64,	inum			)
 		__field(	loff_t, offset			)
 		__field(	ssize_t, length			)
+		__field(	sector_t, pblock		)
 		__field(	u16,	flags			)
 		__field(	u16,	type			)
 		__field(	int,	ret			)
@@ -525,16 +527,20 @@ TRACE_EVENT(gfs2_iomap_end,
 		__entry->inum		= ip->i_no_addr;
 		__entry->offset		= iomap->offset;
 		__entry->length		= iomap->length;
+		__entry->pblock		= iomap->addr == IOMAP_NULL_ADDR ? 0 :
+					 (iomap->addr >> ip->i_inode.i_blkbits);
 		__entry->flags		= iomap->flags;
 		__entry->type		= iomap->type;
 		__entry->ret		= ret;
 	),
 
-	TP_printk("%u,%u bmap %llu iomap end %llu/%lu ty:%d flags:%08x rc:%d",
+	TP_printk("%u,%u bmap %llu iomap end %llu/%lu to %llu ty:%d flags:%08x rc:%d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long long)__entry->inum,
 		  (unsigned long long)__entry->offset,
-		  (unsigned long)__entry->length, (u16)__entry->type,
+		  (unsigned long)__entry->length,
+		  (long long)__entry->pblock,
+		  (u16)__entry->type,
 		  (u16)__entry->flags, __entry->ret)
 );
 
@@ -601,7 +607,8 @@ TRACE_EVENT(gfs2_rs,
 		__entry->rd_addr	= rs->rs_rbm.rgd->rd_addr;
 		__entry->rd_free_clone	= rs->rs_rbm.rgd->rd_free_clone;
 		__entry->rd_reserved	= rs->rs_rbm.rgd->rd_reserved;
-		__entry->inum		= rs->rs_inum;
+		__entry->inum		= container_of(rs, struct gfs2_inode,
+						       i_res)->i_no_addr;
 		__entry->start		= gfs2_rbm_to_block(&rs->rs_rbm);
 		__entry->free		= rs->rs_free;
 		__entry->func		= func;

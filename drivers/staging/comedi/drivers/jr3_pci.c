@@ -24,7 +24,7 @@
  * The DSP on the board requires initialization code, which can be
  * loaded by placing it in /lib/firmware/comedi.  The initialization
  * code should be somewhere on the media you got with your card.  One
- * version is available from http://www.comedi.org in the
+ * version is available from https://www.comedi.org in the
  * comedi_nonfree_firmware tarball.  The file is called "jr3pci.idm".
  */
 
@@ -295,7 +295,6 @@ static int jr3_pci_open(struct comedi_device *dev)
 	struct comedi_subdevice *s;
 	int i;
 
-	dev_dbg(dev->class_dev, "jr3_pci_open\n");
 	for (i = 0; i < dev->n_subdevices; i++) {
 		s = &dev->subdevices[i];
 		spriv = s->private;
@@ -811,7 +810,7 @@ static struct pci_driver jr3_pci_pci_driver = {
 };
 module_comedi_pci_driver(jr3_pci_driver, jr3_pci_pci_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi driver for JR3/PCI force sensor board");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE("comedi/jr3pci.idm");

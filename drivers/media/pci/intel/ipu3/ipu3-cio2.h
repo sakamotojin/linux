@@ -1,18 +1,10 @@
-/*
- * Copyright (c) 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright (C) 2017 Intel Corporation */
 
 #ifndef __IPU3_CIO2_H
 #define __IPU3_CIO2_H
+
+#include <linux/types.h>
 
 #define CIO2_NAME					"ipu3-cio2"
 #define CIO2_DEVICE_NAME				"Intel IPU3 CIO2"
@@ -20,8 +12,6 @@
 #define CIO2_PCI_ID					0x9d32
 #define CIO2_PCI_BAR					0
 #define CIO2_DMA_MASK					DMA_BIT_MASK(39)
-#define CIO2_IMAGE_MAX_WIDTH				4224
-#define CIO2_IMAGE_MAX_LENGTH				3136
 
 #define CIO2_IMAGE_MAX_WIDTH				4224
 #define CIO2_IMAGE_MAX_LENGTH				3136
@@ -29,6 +19,7 @@
 /* 32MB = 8xFBPT_entry */
 #define CIO2_MAX_LOPS					8
 #define CIO2_MAX_BUFFERS			(PAGE_SIZE / 16 / CIO2_MAX_LOPS)
+#define CIO2_LOP_ENTRIES			(PAGE_SIZE / sizeof(u32))
 
 #define CIO2_PAD_SINK					0
 #define CIO2_PAD_SOURCE					1
@@ -401,7 +392,6 @@ struct cio2_device {
 					 sizeof(struct cio2_fbpt_entry))
 
 #define CIO2_FBPT_SUBENTRY_UNIT		4
-#define CIO2_PAGE_SIZE			4096
 
 /* cio2 fbpt first_entry ctrl status */
 #define CIO2_FBPT_CTRL_VALID		BIT(0)

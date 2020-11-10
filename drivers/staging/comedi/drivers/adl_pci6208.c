@@ -58,12 +58,11 @@ static int pci6208_ao_insn_write(struct comedi_device *dev,
 				 unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int val = s->readback[chan];
 	int ret;
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		val = data[i];
+		unsigned int val = data[i];
 
 		/* D/A transfer rate is 2.2us */
 		ret = comedi_timeout(dev, s, insn, pci6208_ao_eoc, 0);
@@ -197,6 +196,6 @@ static struct pci_driver adl_pci6208_pci_driver = {
 };
 module_comedi_pci_driver(adl_pci6208_driver, adl_pci6208_pci_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi driver for ADLink 6208 series cards");
 MODULE_LICENSE("GPL");

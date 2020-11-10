@@ -407,7 +407,7 @@ static void das16m1_handler(struct comedi_device *dev, unsigned int status)
 		if (num_samples > cmd->stop_arg * cmd->chanlist_len)
 			num_samples = cmd->stop_arg * cmd->chanlist_len;
 	}
-	/*  make sure we dont try to get too many points if fifo has overrun */
+	/*  make sure we don't try to get too many points if fifo has overrun */
 	if (num_samples > DAS16M1_AI_FIFO_SZ)
 		num_samples = DAS16M1_AI_FIFO_SZ;
 	insw(dev->iobase, devpriv->ai_buffer, num_samples);
@@ -617,6 +617,6 @@ static struct comedi_driver das16m1_driver = {
 };
 module_comedi_driver(das16m1_driver);
 
-MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_AUTHOR("Comedi https://www.comedi.org");
 MODULE_DESCRIPTION("Comedi driver for CIO-DAS16/M1 ISA cards");
 MODULE_LICENSE("GPL");

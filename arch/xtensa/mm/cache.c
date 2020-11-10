@@ -21,17 +21,16 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/swap.h>
 #include <linux/pagemap.h>
+#include <linux/pgtable.h>
 
 #include <asm/bootparam.h>
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 #include <asm/page.h>
-#include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 
 /* 
  * Note:
@@ -127,7 +126,7 @@ EXPORT_SYMBOL(copy_user_highpage);
 
 void flush_dcache_page(struct page *page)
 {
-	struct address_space *mapping = page_mapping(page);
+	struct address_space *mapping = page_mapping_file(page);
 
 	/*
 	 * If we have a mapping but the page is not mapped to user-space

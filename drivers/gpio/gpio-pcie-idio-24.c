@@ -15,6 +15,7 @@
  * This driver supports the following ACCES devices: PCIe-IDIO-24,
  * PCIe-IDI-24, PCIe-IDO-24, and PCIe-IDIO-12.
  */
+#include <linux/bitmap.h>
 #include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/errno.h>
@@ -103,15 +104,18 @@ static int idio_24_gpio_get_direction(struct gpio_chip *chip,
 
 	/* FET Outputs */
 	if (offset < 24)
-		return 0;
+		return GPIO_LINE_DIRECTION_OUT;
 
 	/* Isolated Inputs */
 	if (offset < 48)
-		return 1;
+		return GPIO_LINE_DIRECTION_IN;
 
 	/* TTL/CMOS I/O */
 	/* OUT MODE = 1 when TTL/CMOS Output Mode is set */
-	return !(ioread8(&idio24gpio->reg->ctl) & out_mode_mask);
+	if (ioread8(&idio24gpio->reg->ctl) & out_mode_mask)
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static int idio_24_gpio_direction_input(struct gpio_chip *chip,
@@ -193,6 +197,43 @@ static int idio_24_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return !!(ioread8(&idio24gpio->reg->ttl_in0_7) & offset_mask);
 }
 
+static int idio_24_gpio_get_multiple(struct gpio_chip *chip,
+	unsigned long *mask, unsigned long *bits)
+{
+	struct idio_24_gpio *const idio24gpio = gpiochip_get_data(chip);
+	unsigned long offset;
+	unsigned long gpio_mask;
+	void __iomem *ports[] = {
+		&idio24gpio->reg->out0_7, &idio24gpio->reg->out8_15,
+		&idio24gpio->reg->out16_23, &idio24gpio->reg->in0_7,
+		&idio24gpio->reg->in8_15, &idio24gpio->reg->in16_23,
+	};
+	size_t index;
+	unsigned long port_state;
+	const unsigned long out_mode_mask = BIT(1);
+
+	/* clear bits array to a clean slate */
+	bitmap_zero(bits, chip->ngpio);
+
+	for_each_set_clump8(offset, gpio_mask, mask, ARRAY_SIZE(ports) * 8) {
+		index = offset / 8;
+
+		/* read bits from current gpio port (port 6 is TTL GPIO) */
+		if (index < 6)
+			port_state = ioread8(ports[index]);
+		else if (ioread8(&idio24gpio->reg->ctl) & out_mode_mask)
+			port_state = ioread8(&idio24gpio->reg->ttl_out0_7);
+		else
+			port_state = ioread8(&idio24gpio->reg->ttl_in0_7);
+
+		port_state &= gpio_mask;
+
+		bitmap_set_value8(bits, port_state, offset);
+	}
+
+	return 0;
+}
+
 static void idio_24_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	int value)
 {
@@ -232,6 +273,54 @@ static void idio_24_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	iowrite8(out_state, base);
 
 	raw_spin_unlock_irqrestore(&idio24gpio->lock, flags);
+}
+
+static void idio_24_gpio_set_multiple(struct gpio_chip *chip,
+	unsigned long *mask, unsigned long *bits)
+{
+	struct idio_24_gpio *const idio24gpio = gpiochip_get_data(chip);
+	unsigned long offset;
+	unsigned long gpio_mask;
+	void __iomem *ports[] = {
+		&idio24gpio->reg->out0_7, &idio24gpio->reg->out8_15,
+		&idio24gpio->reg->out16_23
+	};
+	size_t index;
+	unsigned long bitmask;
+	unsigned long flags;
+	unsigned long out_state;
+	const unsigned long out_mode_mask = BIT(1);
+
+	for_each_set_clump8(offset, gpio_mask, mask, ARRAY_SIZE(ports) * 8) {
+		index = offset / 8;
+
+		bitmask = bitmap_get_value8(bits, offset) & gpio_mask;
+
+		raw_spin_lock_irqsave(&idio24gpio->lock, flags);
+
+		/* read bits from current gpio port (port 6 is TTL GPIO) */
+		if (index < 6) {
+			out_state = ioread8(ports[index]);
+		} else if (ioread8(&idio24gpio->reg->ctl) & out_mode_mask) {
+			out_state = ioread8(&idio24gpio->reg->ttl_out0_7);
+		} else {
+			/* skip TTL GPIO if set for input */
+			raw_spin_unlock_irqrestore(&idio24gpio->lock, flags);
+			continue;
+		}
+
+		/* set requested bit states */
+		out_state &= ~gpio_mask;
+		out_state |= bitmask;
+
+		/* write bits for current gpio port (port 6 is TTL GPIO) */
+		if (index < 6)
+			iowrite8(out_state, ports[index]);
+		else
+			iowrite8(out_state, &idio24gpio->reg->ttl_out0_7);
+
+		raw_spin_unlock_irqrestore(&idio24gpio->lock, flags);
+	}
 }
 
 static void idio_24_irq_ack(struct irq_data *data)
@@ -368,6 +457,7 @@ static int idio_24_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	int err;
 	const size_t pci_bar_index = 2;
 	const char *const name = pci_name(pdev);
+	struct gpio_irq_chip *girq;
 
 	idio24gpio = devm_kzalloc(dev, sizeof(*idio24gpio), GFP_KERNEL);
 	if (!idio24gpio)
@@ -397,7 +487,18 @@ static int idio_24_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	idio24gpio->chip.direction_input = idio_24_gpio_direction_input;
 	idio24gpio->chip.direction_output = idio_24_gpio_direction_output;
 	idio24gpio->chip.get = idio_24_gpio_get;
+	idio24gpio->chip.get_multiple = idio_24_gpio_get_multiple;
 	idio24gpio->chip.set = idio_24_gpio_set;
+	idio24gpio->chip.set_multiple = idio_24_gpio_set_multiple;
+
+	girq = &idio24gpio->chip.irq;
+	girq->chip = &idio_24_irqchip;
+	/* This will let us handle the parent IRQ in the driver */
+	girq->parent_handler = NULL;
+	girq->num_parents = 0;
+	girq->parents = NULL;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_edge_irq;
 
 	raw_spin_lock_init(&idio24gpio->lock);
 
@@ -407,13 +508,6 @@ static int idio_24_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	err = devm_gpiochip_add_data(dev, &idio24gpio->chip, idio24gpio);
 	if (err) {
 		dev_err(dev, "GPIO registering failed (%d)\n", err);
-		return err;
-	}
-
-	err = gpiochip_irqchip_add(&idio24gpio->chip, &idio_24_irqchip, 0,
-		handle_edge_irq, IRQ_TYPE_NONE);
-	if (err) {
-		dev_err(dev, "Could not add irqchip (%d)\n", err);
 		return err;
 	}
 

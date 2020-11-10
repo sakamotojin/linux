@@ -348,8 +348,8 @@ enum i40iw_status_code i40iw_puda_poll_completion(struct i40iw_sc_dev *dev,
 		spin_lock_irqsave(&rsrc->bufpool_lock, flags);
 		rsrc->tx_wqe_avail_cnt++;
 		spin_unlock_irqrestore(&rsrc->bufpool_lock, flags);
-		if (!list_empty(&rsrc->vsi->ilq->txpend))
-			i40iw_puda_send_buf(rsrc->vsi->ilq, NULL);
+		if (!list_empty(&rsrc->txpend))
+			i40iw_puda_send_buf(rsrc, NULL);
 	}
 
 done:
@@ -814,13 +814,13 @@ void i40iw_puda_dele_resources(struct i40iw_sc_vsi *vsi,
 	switch (rsrc->completion) {
 	case PUDA_HASH_CRC_COMPLETE:
 		i40iw_free_hash_desc(rsrc->hash_desc);
-		/* fall through */
+		fallthrough;
 	case PUDA_QP_CREATED:
 		if (!reset)
 			i40iw_puda_free_qp(rsrc);
 
 		i40iw_free_dma_mem(dev->hw, &rsrc->qpmem);
-		/* fallthrough */
+		fallthrough;
 	case PUDA_CQ_CREATED:
 		if (!reset)
 			i40iw_puda_free_cq(rsrc);
@@ -1471,10 +1471,6 @@ static void i40iw_ieq_tx_compl(struct i40iw_sc_vsi *vsi, void *sqwrid)
 	struct i40iw_puda_buf *buf = (struct i40iw_puda_buf *)sqwrid;
 
 	i40iw_puda_ret_bufpool(ieq, buf);
-	if (!list_empty(&ieq->txpend)) {
-		buf = i40iw_puda_get_listbuf(&ieq->txpend);
-		i40iw_puda_send_buf(ieq, buf);
-	}
 }
 
 /**
